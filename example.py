@@ -1,10 +1,8 @@
 #!/usr/local/bin/python3.3
 
 import os
-from measure import Measure,globe
+from measure import globe
 
-
-globe = Measure()
 
 globe.add_block("main")
 
