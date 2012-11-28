@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.3
+#!/usr/local/lib/python3.3
 
 #    This file is part of measure.
 #
@@ -13,10 +13,9 @@
 #    GNU General Public License for more details.
 #
 #    You should have received a copy of the GNU General Public License
-#    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+#    along with measure.  If not, see <http://www.gnu.org/licenses/>.
 
 from time import time
-from xmlet import XmlNode
 
 class TimedRun:
     def __init__(self):            
@@ -54,10 +53,10 @@ class TimedBlock:
     def add_timed(self):
         self.timed_run.append(TimedRun())
 
-    def get_times(self,index=-2):
+    def get_times(self,index=None):
         times = []
 
-        if index == -2:
+        if index is None:
             for time in self.timed_run:
                 times.append(time.total())
         else:
@@ -83,35 +82,60 @@ class TimedBlock:
     def use_percent(self,time):
         return (time / self.total_timed()) * 100
     
-    def xml_child_number(self,number=-1):
-        if number == -1:
+    def xml_child_number(self,number=None):
+        if number is None:
             return self.xml_child
         else:
             self.xml_child = number
 
+class TreeNode:
+    def __init__(self, id="", parent=None):
+        self.parent = parent
+        self.tree_node = []
+        self.id = id
+
+    def add_id(self, id):
+        self.tree_node.append(TreeNode(id,self.parent))
+        self.tree_node[-1].parent = self
+
+    def get_id(self,id):
+        #use this method over get_id_node because get_id_node wont clear match list,do here instead
+        match = []
+        self.get_id_node(id,match)
+        return match
+
+    def get_id_node(self,id,match):
+        if id == self.id:
+            match.append(self)
+            
+        for node in self.tree_node:
+            node.get_id_node(id,match)
+
+        return match
+
 class BlockTree:
     def __init__(self):
-        self.tree_node = XmlNode()
-        self.current_node = self.tree_node
+        self.tree = TreeNode()
+        self.current_node = self.tree
 
     def add(self,block):
-        self.current_node.add_child(block)
-        child_number = self.xml_child_count = len(self.current_node.xml_node) - 1
-        self.current_node = self.current_node.xml_node[-1]
+        self.current_node.add_id(block)
+        child_number = self.xml_child_count = len(self.current_node.tree_node) - 1
+        self.current_node = self.current_node.tree_node[-1]
         return child_number
 
     def current_to_block(self,child_number):
-        self.current_node = self.current_node.xml_node[child_number]
+        self.current_node = self.current_node.tree_node[child_number]
     
     def close(self,block):
-        self.current_node = self.current_node.parent    
+        self.current_node = self.current_node.parent
 
 class Measure:
     def __init__(self):
         self.id_label = 'id'
         self.block = {}
         self.block[self.id_label] = {}
-        self.block_tree = BlockTree()
+        self.block_map = BlockTree()
         self.last_block = []
         self.top_block = "main"
         self.header_format = "\n{id:<20}{run_count:<10}{time:<30}{of_parent:<30}{of_total:<30}"
@@ -121,14 +145,14 @@ class Measure:
 
     def set_sub(self):
         child_number = self.block[self.id_label][self.last_block[-1]].xml_child_number()
-        self.block_tree.current_to_block(child_number)
+        self.block_map.current_to_block(child_number)
 
     def add_sub(self):
-        child_number = self.block_tree.add(self.last_block[-1])
+        child_number = self.block_map.add(self.last_block[-1])
         self.block[self.id_label][self.last_block[-1]].xml_child_number(child_number)
 
     def close_sub(self):
-        self.block_tree.close(self.last_block[-1])
+        self.block_map.close(self.last_block[-1])
 
     def add_block(self,id,group=[]):
         #reset the object state at start,becasue measure.msr can be used as a global and retain its current state after each run on a wsgi application
@@ -179,14 +203,14 @@ class Measure:
         last[self.id_label][self.last_block[-1]] = self.block[self.id_label][self.last_block[-1]]
         return 1
 
-    def show_group(self,group):
+    def report_group(self,group):
         last = self.block
 
         for count in range(len(group)):
             last = last[group[count]]
 
         last = last[self.id_label]
-        return self.show_block(last)
+        return self.report(last)
 
     #stop all times within a block
     def stop_block(self,block=""):
@@ -198,7 +222,7 @@ class Measure:
         else:
             self.block[self.id_label][self.last_block.pop()].stop_timed()
 
-    def show_block(self,select=[]):
+    def report(self,select=[]):
         self.show = "\n" * self.gap
 
         if not select:
@@ -210,7 +234,7 @@ class Measure:
             self.show += "\n{line}".format(line="-"*self.line_lenght) 
 
             count = 0
-            parent = self.block_tree.tree_node.get_element(block).get_matches()[0].parent.element
+            parent = self.block_map.tree.get_id(block)[0].parent.id
 
             for run in self.block[self.id_label][block].timed_run:
                 if block == self.top_block:
@@ -243,4 +267,5 @@ class Measure:
         of_total = self.block[self.id_label][self.top_block].use_percent(block_ave)
         self.show += self.time_format.format(id="",run_count="ave",time=str(block_ave),of_parent=of_parent,of_total=of_total)
 
-msr = Measure()
+#use globe if you want to report over multiple modules
+globe = Measure()
