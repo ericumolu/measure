@@ -1,4 +1,4 @@
-#!/usr/local/lib/python3.3
+#!/usr/local/bin/python3.3
 
 #    This file is part of measure.
 #
@@ -82,11 +82,11 @@ class TimedBlock:
     def use_percent(self,time):
         return (time / self.total_timed()) * 100
     
-    def xml_child_number(self,number=None):
+    def child_number(self,number=None):
         if number is None:
-            return self.xml_child
+            return self.child_number
         else:
-            self.xml_child = number
+            self.child_number = number
 
 class TreeNode:
     def __init__(self, id="", parent=None):
@@ -120,7 +120,7 @@ class BlockTree:
 
     def add(self,block):
         self.current_node.add_id(block)
-        child_number = self.xml_child_count = len(self.current_node.tree_node) - 1
+        child_number = self.child_count = len(self.current_node.tree_node) - 1
         self.current_node = self.current_node.tree_node[-1]
         return child_number
 
@@ -144,12 +144,12 @@ class Measure:
         self.gap = 10
 
     def set_sub(self):
-        child_number = self.block[self.id_label][self.last_block[-1]].xml_child_number()
+        child_number = self.block[self.id_label][self.last_block[-1]].child_number()
         self.block_map.current_to_block(child_number)
 
     def add_sub(self):
         child_number = self.block_map.add(self.last_block[-1])
-        self.block[self.id_label][self.last_block[-1]].xml_child_number(child_number)
+        self.block[self.id_label][self.last_block[-1]].child_number(child_number)
 
     def close_sub(self):
         self.block_map.close(self.last_block[-1])
